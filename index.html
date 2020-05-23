@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <script src="dashboard-functions.js"></script>
+    <script src="node_modules/plotly.js/dist/plotly-basic.min.js"></script>
+    <script src="node_modules/papaparse/papaparse.min.js"></script>
+
+    <link rel="stylesheet" href="covid19r.css" />
+    <link rel="shortcut icon" href="images/favicon.png" type="image/x-icon" />
+
+    <link rel="stylesheet" href="node_modules/select2/dist/css/select2.min.css" rel="stylesheet" />
+
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Covid-19 Effective Reproduction Number (R) Estimates</title>
+
+    <script src="node_modules/jquery/dist/jquery.min.js"></script>
+  </head>
+  
+  <body style="background-color: #fff" onload="initPlot()" onresize="updatePlot()">
+    <div id="plotcontainer">
+      <h1>Covid-19 Effective Reproduction Number (R) Estimates</h1>
+      <div id="mainplot"></div>
+    </div>
+
+    <div id="sidebar">
+      <div id="logocontainer" >
+        <a href="https://poware.org/covid19"><img id="powarelogo" src="poware-logo.svg" /></a>
+      </div>
+
+      <div id="curveselect">
+        Curve:
+        <select id="curveType" onchange="recalculateCurvesAndPlot(/*autoscale=*/true)">
+          <option value="R">Estimated R</option>
+          <option value="C">Total Reported Cases</option>
+          <option value="c">New Reported Cases</option>
+          <option value="D">Total Reported Deaths</option>
+          <option value="d">New Reported Deaths</option>
+          <option value="P">New Cases, "Diamond Princess Estimate"</option>
+          <option value="p">"Diamond Princess Estimate" to Reported New Cases</option>
+        </select>
+      </div>
+
+      <div id="curvevariants">
+        Variants:
+
+        <li>
+          <input id="checkboxShowRaw" type="checkbox" onchange="recalculateCurvesAndPlot()">
+          <label for="checkboxShowRaw">Show Raw Curves</label>
+        </li>
+
+        <li>
+          <input id="checkboxShowSmoothened" type="checkbox" checked onchange="recalculateCurvesAndPlot()">
+          <label for="checkboxShowSmoothened">Show Smothened Curves</label>
+        </li>
+
+        <!--not implemented yet
+        <li>
+          <input id="checkboxNormalize" type="checkbox" onchange="recalculateCurvesAndPlot()">
+          <label for="checkboxNormalize">Per-Captia Curves</label>
+        </li>
+        -->
+      </div>
+
+
+      <div id="countrylistbox">
+        Countries:
+        <select name="Languages" id="countrylist" class="form-control" multiple="multiple" style="width: 100%; height: 50px;" size="1">
+          <option value="NONE">loading...</option>
+        </select>
+      </div>
+
+      <div id="rparameters">
+        R-Estimator Parameters:
+
+        <div class="rangewrap">
+          <label for="infectivityDays">Average Infectious Days:<!-- TODO: explainer --></label>
+          <div class="rangeInfo" id="infectivityDaysInfo">Unset</div>
+          <input type="range" min="5" max="40" value="14" class="range" id="infectivityDays" oninput="updateControlInfos()"  onchange="recalculateCurvesAndPlot()" />
+        </div>
+
+        <div>
+          <label for="peakDayActive">Peak Infectiousness Day: <!-- TODO: explainer --></label>
+          <div class="rangeInfo" id="peakDayActiveInfo">Unset</div>
+          <input type="range" min="3" max="40" value="11" class="range" id="peakDayActive" oninput="updateControlInfos()"  onchange="recalculateCurvesAndPlot()" />
+        </div>
+
+        <div>
+          <label for="firstDayActive">First Infectious Day: <!-- TODO: explainer --></label>
+          <div class="rangeInfo" id="firstDayActiveInfo">Unset</div>
+          <input type="range" min="-20" max="0" value="-9" class="range" id="firstDayActive" oninput="updateControlInfos()"  onchange="recalculateCurvesAndPlot()">
+        </div>
+
+        <div id="infectivityplot"></div>
+      </div>
+
+      <div id="smoothenparameters">
+        Smoother Parameters:
+        <div>
+          <label for="smoothenDays">Period [Days]:<!-- TODO: explainer --></label>
+          <input type="range" min="3" max="40" value="7" class="range" id="smoothenDays" oninput="updateControlInfos()"  onchange="recalculateCurvesAndPlot()">
+          <div class="rangeInfo" id="smoothenDaysInfo">Unset</div>
+        </div>
+      </div>
+
+    </div>
+    <script src="node_modules/select2/dist/js/select2.min.js"></script>
+  </body>
+</html>
