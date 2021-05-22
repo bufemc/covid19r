@@ -6,25 +6,38 @@
     <script src="node_modules/papaparse/papaparse.min.js"></script>
 
     <link rel="stylesheet" href="covid19r.css" />
-    <link rel="shortcut icon" href="images/favicon.png" type="image/x-icon" />
+    <link rel="shortcut icon" href="favicon.png" type="image/x-icon" />
 
-    <link rel="stylesheet" href="node_modules/select2/dist/css/select2.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="node_modules/bootstrap/dist/css/bootstrap.css" rel="stylesheet" />
+    <link rel="stylesheet" href="node_modules/@fortawesome/fontawesome-free/css/all.css" rel="stylesheet" />
+    <link rel="stylesheet" href="node_modules/select2/dist/css/select2.css" rel="stylesheet" />
 
     <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <title>Covid-19 Effective Reproduction Number (R) Estimates</title>
-
-    <script src="node_modules/jquery/dist/jquery.min.js"></script>
   </head>
   
-  <body style="background-color: #fff" onload="initPlot()" onresize="updatePlot()">
-    <div id="plotcontainer">
-      <h1>Covid-19 Effective Reproduction Number (R) Estimates</h1>
-      <div id="mainplot"></div>
+  <body style="background-color: #fff" onload="initPlot()" class="vh-100">
+   <div class="wrapper">
+    <div id="plotcontainer" class="float-left w-100 h-100">
+      <div class="h-100 d-flex flex-column">
+      <div class="flex-column" style="padding-left: 15px; padding-top: 10px;">
+        <h1 class="d-block d-xl-none">Covid Curves</h1>
+        <h1 class="d-none d-xl-block">Covid-19 Effective Reproduction Number (R) Estimates</h1>
+      </div>
+      <div id="mainplot" class="flex-column flex-grow-1 overflow-auto"></div>
+      </div>
     </div>
 
-    <div id="sidebar">
+     <div id="sidebarsmall" class="d-block d-xl-none">
+       <a href="https://poware.org"><img class="powarelogosmall" src="poware-logo.svg" /></a>
+       <button type="button" class="btn" onclick="toggleSidebar();">
+         <i class="fas fa-bars" ></i>
+       </button>
+     </div>
+
+    <div id="sidebar" class="float-right d-none d-xl-block" style="">
       <div id="logocontainer" >
         <a href="https://poware.org/covid19"><img id="powarelogo" src="poware-logo.svg" /></a>
       </div>
@@ -32,7 +45,7 @@
       <div id="curveselect">
         Curve:
         <select id="curveType" onchange="recalculateCurvesAndPlot(/*autoscale=*/true)">
-          <option value="R">Estimated R</option>
+          <option value="R" selected>Estimated R</option>
           <option value="C">Total Reported Cases</option>
           <option value="c">New Reported Cases</option>
           <option value="D">Total Reported Deaths</option>
@@ -52,15 +65,13 @@
 
         <li>
           <input id="checkboxShowSmoothened" type="checkbox" checked onchange="recalculateCurvesAndPlot()">
-          <label for="checkboxShowSmoothened">Show Smothened Curves</label>
+          <label for="checkboxShowSmoothened">Show Smoothened Curves</label>
         </li>
 
-        <!--not implemented yet
         <li>
-          <input id="checkboxNormalize" type="checkbox" onchange="recalculateCurvesAndPlot()">
-          <label for="checkboxNormalize">Per-Captia Curves</label>
+          <input id="checkboxNormalize" type="checkbox" checked onchange="recalculateCurvesAndPlot()">
+          <label for="checkboxNormalize">Normalize by Population</label>
         </li>
-        -->
       </div>
 
 
@@ -83,13 +94,13 @@
         <div>
           <label for="peakDayActive">Peak Infectiousness Day: <!-- TODO: explainer --></label>
           <div class="rangeInfo" id="peakDayActiveInfo">Unset</div>
-          <input type="range" min="3" max="40" value="11" class="range" id="peakDayActive" oninput="updateControlInfos()"  onchange="recalculateCurvesAndPlot()" />
+          <input type="range" min="3" max="40" value="5" class="range" id="peakDayActive" oninput="updateControlInfos()"  onchange="recalculateCurvesAndPlot()" />
         </div>
 
         <div>
           <label for="firstDayActive">First Infectious Day: <!-- TODO: explainer --></label>
           <div class="rangeInfo" id="firstDayActiveInfo">Unset</div>
-          <input type="range" min="-20" max="0" value="-9" class="range" id="firstDayActive" oninput="updateControlInfos()"  onchange="recalculateCurvesAndPlot()">
+          <input type="range" min="-20" max="0" value="-2" class="range" id="firstDayActive" oninput="updateControlInfos()"  onchange="recalculateCurvesAndPlot()">
         </div>
 
         <div id="infectivityplot"></div>
@@ -99,12 +110,16 @@
         Smoother Parameters:
         <div>
           <label for="smoothenDays">Period [Days]:<!-- TODO: explainer --></label>
-          <input type="range" min="3" max="40" value="7" class="range" id="smoothenDays" oninput="updateControlInfos()"  onchange="recalculateCurvesAndPlot()">
+          <input type="range" min="3" max="50" value="7" class="range" id="smoothenDays" oninput="updateControlInfos()"  onchange="recalculateCurvesAndPlot()">
           <div class="rangeInfo" id="smoothenDaysInfo">Unset</div>
         </div>
       </div>
 
     </div>
+   </div>
+
+    <script src="node_modules/jquery/dist/jquery.min.js"></script>
+    <script src="node_modules/bootstrap/dist/js/bootstrap.min.js"></script>
     <script src="node_modules/select2/dist/js/select2.min.js"></script>
   </body>
 </html>

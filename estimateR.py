@@ -66,10 +66,6 @@ import datetime
 import operator as op
 from functools import reduce
 
-country = "Germany"
-if len(sys.argv) > 1:
-    country = sys.argv[1]
-
 def nChosek(n, k):
     k = min(k, n-k)
     numer = reduce(op.mul, range(n, n-k, -1), 1)
@@ -101,7 +97,7 @@ for i in range(0, numDaysInfectious + 1):
 # normalize the weights list
 weightsList = list(map(lambda x: x/sumWeights, weightsList))
 
-def boxFilter(data, n, offset=0):
+def boxFilter(timeList, data, n, offset=0):
     result = []
 
     # TODO: the data may have gaps or redundancies, i.e., dates where
@@ -152,170 +148,253 @@ def fileNameToDateTime(fileName):
     return dt
 filesList.sort(key=fileNameToDateTime)
 
-timeList = []
-totalCases = []
-totalDeaths = []
+def createDatabase():
+    def applyErrata(db):
+        """Apply some errata to the raw data.
 
-format1Date = datetime.datetime(2020, 3, 22)
+        The intention is to e.g. smoothen big retrospecive corrections
+        of a country's data to fix obviously errors in the curves.
+        """
+        usEntry = db["United States of America"]
 
-for fileName in filesList:
-    dt = fileNameToDateTime(fileName)
-    for i, curLine in enumerate(open(dataSourceDir + "/" + fileName).readlines()):
-        # skip first line (headlines)
-        if i == 0:
-            continue
+        # the data for the US is strange on 28-01-2021. We interpolate
+        # the totals between the days before and after.
+        i = usEntry["timeList"].index(datetime.datetime(2021, 1, 28))
+        a = usEntry["totalCases"][i-1]
+        b = usEntry["totalCases"][i+1]
+        usEntry["totalCases"][i] = (a+b)/2
 
-        # some countries have weird names and are not unique over
-        # time, rectify this
-        curLine = curLine.replace('"Korea, South"', "South Korea")
-        curLine = curLine.replace('Republic of Korea', "South Korea")
-        curLine = curLine.replace('Taiwan*', "Taiwan")
-        curLine = curLine.replace('Mainland China', "China")
-        curLine = re.sub("\"[a-zA-Z0-9,(). ]*\",", ",", curLine) # US City names screw things up with commas in their names
+        a = usEntry["totalDeaths"][i-1]
+        b = usEntry["totalDeaths"][i+1]
+        usEntry["totalDeaths"][i] = (a+b)/2
+    
+    db = {}
 
-        fields = curLine.split(",")
+    format1Date = datetime.datetime(2020, 3, 22)
 
-        numCases = 0
-        numDeaths = 0
-        if dt < format1Date:
-            if fields[0] == "Cruise Ship":
-                countryLine = "Diamond Princess"
-            elif fields[0] == "Grand Princess Cruise Ship":
-                continue # the "grand princess cruise ship" data seems to be attributed to the US, we don't want that
-            elif fields[1] == "Cruise Ship":
-                countryLine = fields[0]
+    for fileName in filesList:
+        dt = fileNameToDateTime(fileName)
+        for i, curLine in enumerate(open(dataSourceDir + "/" + fileName).readlines()):
+            # skip first line (headlines)
+            if i == 0:
+                continue
+
+            # some countries have weird names and are not unique over
+            # time, rectify this
+            curLine = curLine.replace('"Korea, South"', "South Korea")
+            curLine = curLine.replace('Republic of Korea', "South Korea")
+            curLine = curLine.replace('Taiwan*', "Taiwan")
+
+            curLine = curLine.replace("Iran (Islamic Republic of)", "Iran")
+            curLine = curLine.replace("occupied Palestinian territory", "West Bank and Gaza")
+            curLine = curLine.replace("Palestine", "West Bank and Gaza")
+            curLine = curLine.replace("Republic of Ireland", "Ireland")
+            curLine = curLine.replace("Republic of Moldova", "Moldova")
+            curLine = curLine.replace("Republic of Congo", "Congo (Brazzaville)")
+            curLine = curLine.replace("Republic of the Congo", "Congo (Brazzaville)")
+            curLine = curLine.replace("Czech Republic", "Czechia")    
+            curLine = curLine.replace("East Timor", "Timor-Leste")
+            curLine = curLine.replace(" Azerbaijan", "Azerbaijan")
+            curLine = curLine.replace(" Afghanistan", "Afghanistan")
+            curLine = curLine.replace("Cape Verde", "Cabo Verde")
+            curLine = curLine.replace("Vatican City", "Holy See")
+            curLine = curLine.replace("Viet Nam", "Vietnam")
+            curLine = curLine.replace("UK", "United Kingdom")
+            curLine = curLine.replace("The Gambia", "Gambia")
+            curLine = curLine.replace("The Bahamas", "Bahamas")
+            curLine = curLine.replace("Taipei and environs", "Taiwan")
+            curLine = curLine.replace("Russian Federation", "Russia")
+            curLine = curLine.replace("Ivory Coast", "Cote d'Ivoire")
+            
+            curLine = curLine.replace('Mainland China', "China")
+            curLine = curLine.replace("Hong Kong SAR", "China")
+            curLine = curLine.replace("Hong Kong", "China")
+            curLine = curLine.replace("Macao SAR", "China")
+            curLine = curLine.replace("Macau", "China")
+
+            curLine = curLine.replace("US", "United States of America")
+            curLine = curLine.replace("Puerto Rico", "United States of America")
+            curLine = curLine.replace("Guam", "United States of America")
+
+            curLine = curLine.replace("North Ireland", "United Kingdom")
+            curLine = curLine.replace("Gibraltar", "United Kingdom")
+            curLine = curLine.replace("Cayman Islands", "United Kingdom")
+            curLine = curLine.replace("Channel Islands", "United Kingdom")
+            curLine = curLine.replace("Jersey", "United Kingdom")
+            curLine = curLine.replace("Guernsey", "United Kingdom")
+
+            curLine = curLine.replace("Martinique", "France")
+            curLine = curLine.replace("Guadeloupe", "France")
+            curLine = curLine.replace("French Guiana", "France")    
+            curLine = curLine.replace("St. Martin", "France")
+            curLine = curLine.replace("Saint Martin", "France")
+            curLine = curLine.replace("Saint Barthelemy", "France")
+            curLine = curLine.replace("Reunion", "France")
+            curLine = curLine.replace("Mayotte", "France")
+
+            curLine = curLine.replace("Greenland", "Denmark")    
+            curLine = curLine.replace("Faroe Islands", "Denmark")    
+
+            curLine = curLine.replace("Aruba", "Netherlands")
+            curLine = curLine.replace("Curacao", "Netherlands")
+
+            curLine = re.sub("\"[a-zA-Z0-9,(). ]*\",", ",", curLine) # US City names screw things up with commas in their names
+
+            fields = curLine.split(",")
+
+            numCases = 0
+            numDeaths = 0
+            if dt < format1Date:
+                if fields[0] == "Cruise Ship":
+                    country = "Diamond Princess"
+                elif fields[0] == "Grand Princess Cruise Ship":
+                    continue # the "grand princess cruise ship" data seems to be attributed to the US, we don't want that
+                elif fields[1] == "Cruise Ship":
+                    country = fields[0]
+                else:
+                    country = fields[1]
+                if fields[3] != "":
+                    numCases = int(fields[3])
+                if fields[4] != "":
+                    numDeaths = int(fields[4])
             else:
-                countryLine = fields[1]
-            if fields[3] != "":
-                numCases = int(fields[3])
-            if fields[4] != "":
-                numDeaths = int(fields[4])
-        else:
-            countryLine = fields[3]
-            if fields[7] != "":
-                numCases = int(fields[7])
-            if fields[8] != "":
-                numDeaths = int(fields[8])
+                country = fields[3]
+                if fields[7] != "":
+                    numCases = int(fields[7])
+                if fields[8] != "":
+                    numDeaths = int(fields[8])
 
-        countryLine = countryLine.replace("US", "United States of America")
+            country = country.replace("Cruise Ship", "Diamond Princess")
 
-        if countryLine != country:
-            continue
+            if country in ["Others", "MS Zaandam"]:
+                continue
 
 
-        if len(timeList) == 0 or timeList[-1] != dt:
-            timeList.append(dt)
-            totalCases.append(0)
-            totalDeaths.append(0)
+            if country not in db:
+                db[country] = {
+                    "timeList": [],
+                    "totalCases": [],
+                    "totalDeaths": [],
+                }
+            
+            if len(db[country]["timeList"]) == 0 or db[country]["timeList"][-1] != dt:
+                db[country]["timeList"].append(dt)
+                db[country]["totalCases"].append(0)
+                db[country]["totalDeaths"].append(0)
 
-        totalCases[-1] += numCases
-        totalDeaths[-1] += numDeaths
+            db[country]["totalCases"][-1] += numCases
+            db[country]["totalDeaths"][-1] += numDeaths
 
-# the number of daily new cases based on the total cases
-deltaCases = []
-# the number of daily deaths based on the total deaths
-deltaDeaths = []
-# number of deaths divided by 0.017 (the lethality on the Diamond
-# Princess cruise ship)
-totalCases2 = []
-for i, numCases in enumerate(totalCases):
-    if i > 1:
-        # some countries like Spain report a negative number of
-        # new cases on some days, probably due to discovering
-        # errors in data collection (e.g., cases counted multiple
-        # times, etc.). while this is in general not a felony, it
-        # spoils our curves too much, so we don't allow negative
-        # new case numbers...
-        deltaCases.append(max(0, totalCases[i] - totalCases[i - 1]))
-        deltaDeaths.append(max(0, totalDeaths[i] - totalDeaths[i - 1]))
-    else:
-        deltaCases.append(numCases)
-        deltaDeaths.append(totalDeaths[i])
+    applyErrata(db)
+            
+    for country in db:
+        # the number of daily new cases based on the total cases
+        db[country]["deltaCases"] = []
+        # the number of daily deaths based on the total deaths
+        db[country]["deltaDeaths"] = []
+        # number of deaths divided by 0.017 (the lethality on the Diamond
+        # Princess cruise ship)
+        db[country]["totalCases2"] = []
+        for i, numCases in enumerate(db[country]["totalCases"]):
+            if i > 1:
+                # some countries like Spain report a negative number of
+                # new cases on some days, probably due to discovering
+                # errors in data collection (e.g., cases counted multiple
+                # times, etc.). while this is in general not a felony, it
+                # spoils our curves too much, so we don't allow negative
+                # new case numbers...
+                db[country]["deltaCases"].append(max(0, db[country]["totalCases"][i] - db[country]["totalCases"][i - 1]))
+                db[country]["deltaDeaths"].append(max(0, db[country]["totalDeaths"][i] - db[country]["totalDeaths"][i - 1]))
+            else:
+                db[country]["deltaCases"].append(numCases)
+                db[country]["deltaDeaths"].append(db[country]["totalDeaths"][i])
 
-    # death is delayed relative to infection for about three weeks and
-    # relative to confirmation for about 14 days...
-    if i >= 14:
-        totalCases2.append(totalDeaths[i] * (712./13))
+            # death is delayed relative to infection for about three weeks and
+            # relative to confirmation for about 14 days...
+            if i >= 14:
+                db[country]["totalCases2"].append(db[country]["totalDeaths"][i] * (712./13))
 
-# compute the attributable weight based on the filtered case deltas
-attributableWeight = [0.0]*len(timeList)
-for i in range(0, len(timeList)):
-    # the new cases seen at day i are the ones which we need to
-    # distribute amongst day i's neighbors using the weightList array
-    for j, w in enumerate(weightsList):
-        dayIdx = i + weightsOffset + j
-        if dayIdx < 0:
-            continue
-        elif dayIdx + 1 > len(timeList):
-            continue
+        # compute the attributable weight based on the filtered case deltas
+        db[country]["attributableWeight"] = [0.0]*len(db[country]["timeList"])
+        for i in range(0, len(db[country]["timeList"])):
+            # the new cases seen at day i are the ones which we need to
+            # distribute amongst day i's neighbors using the weightList array
+            for j, w in enumerate(weightsList):
+                dayIdx = i + weightsOffset + j
+                if dayIdx < 0:
+                    continue
+                elif dayIdx + 1 > len(db[country]["timeList"]):
+                    continue
 
-        attributableWeight[dayIdx] += w * deltaCases[i]
+                db[country]["attributableWeight"][dayIdx] += w * db[country]["deltaCases"][i]
 
-# the estimated R factor of a given day simply is the ratio between
-# number of observed cases and the attributable weight of that day.
-estimatedR = []
-for i, n in enumerate(deltaCases):
-    R = None
-    if totalCases[i] >= 100 and attributableWeight[i] > 1e-10:
-        R = deltaCases[i]/attributableWeight[i]
+        # the estimated R factor of a given day simply is the ratio between
+        # number of observed cases and the attributable weight of that day.
+        db[country]["estimatedR"] = []
+        for i, n in enumerate(db[country]["deltaCases"]):
+            R = None
+            if db[country]["totalCases"][i] >= 100 and db[country]["attributableWeight"][i] > 1e-10:
+                R = db[country]["deltaCases"][i]/db[country]["attributableWeight"][i]
 
-    estimatedR.append(R)
+            db[country]["estimatedR"].append(R)
 
-totalCasesSmoothened = boxFilter(totalCases, n=7)
-totalCases2Smoothened = boxFilter(totalCases2, n=7)
-deltaCasesSmoothened = boxFilter(deltaCases, n=7)
-totalDeathsSmoothened = boxFilter(totalDeaths, 7)
-deltaDeathsSmoothened = boxFilter(deltaDeaths, 7)
-estimatedRSmoothened = boxFilter(estimatedR, 7)
+        db[country]["totalCasesSmoothened"] = boxFilter(db[country]["timeList"], db[country]["totalCases"], n=7)
+        db[country]["totalCases2Smoothened"] = boxFilter(db[country]["timeList"], db[country]["totalCases2"], n=7)
+        db[country]["deltaCasesSmoothened"] = boxFilter(db[country]["timeList"], db[country]["deltaCases"], n=7)
+        db[country]["totalDeathsSmoothened"] = boxFilter(db[country]["timeList"], db[country]["totalDeaths"], 7)
+        db[country]["deltaDeathsSmoothened"] = boxFilter(db[country]["timeList"], db[country]["deltaDeaths"], 7)
+        db[country]["estimatedRSmoothened"] = boxFilter(db[country]["timeList"], db[country]["estimatedR"], 7)
 
-# print the results
-print('Date '+ \
-      '"Total Cases" '+ \
-      '"New Cases" '+ \
-      '"Total Deaths" '+ \
-      '"New Deaths" '+ \
-      '"Estimated R" '+ \
-      '"\'Diamond Princess Total Case Estimate\'" '+ \
-      '"Smoothened Total Cases" '+ \
-      '"Smoothened New Cases" '+ \
-      '"Smoothened Total Deaths" '+ \
-      '"Smoothened New Deaths" '+ \
-      '"Smoothened Estimated R" '+ \
-      '"Smoothened \'Diamond Princess Total Case Estimate\'" ')
-for i in range(0, len(timeList)):
-    tc2 =  "\"\""
-    tc2s = "\"\""
-    if i < len(totalCases2):
-        tc2 = totalCases2[i]
-        tc2s = totalCases2Smoothened[i]
+    return db
 
-    R = "\"\"" if estimatedR[i] is None else estimatedR[i]
-    Rs = "\"\"" if estimatedRSmoothened[i] is None else estimatedRSmoothened[i]
-    formatString = "{date} " + \
-        "{totalCases} "+ \
-        "{newCases} "+ \
-        "{totalDeaths} "+ \
-        "{newDeaths} "+ \
-        "{estimatedR} "+ \
-        "{dpTotalCasesEstimate} "+ \
-        "{smoothenedTotalCases} "+ \
-        "{smoothenedNewCases} "+ \
-        "{smoothenedTotalDeaths} "+ \
-        "{smoothenedNewDeaths} "+ \
-        "{smoothenedEstimatedR} "+ \
-        "{smoothenedDpTotalCasesEstimate} "
-    print(formatString.format(**{
-        "date": timeList[i].strftime("%Y-%m-%d"),
-        "totalCases":totalCases[i],
-        "newCases":deltaCases[i],
-        "totalDeaths":totalDeaths[i],
-        "newDeaths":deltaDeaths[i],
-        "estimatedR":R,
-        "dpTotalCasesEstimate":tc2,
-        "smoothenedTotalCases":totalCasesSmoothened[i],
-        "smoothenedNewCases":deltaCasesSmoothened[i],
-        "smoothenedTotalDeaths":totalDeaths[i],
-        "smoothenedNewDeaths":deltaDeaths[i],
-        "smoothenedEstimatedR":Rs,
-        "smoothenedDpTotalCasesEstimate":tc2s,
-    }))
+def printCountryCsv(db, country, outFile):
+    if country not in db:
+        return
+
+    # print the results
+    print('Date '+ \
+          '"Total Cases" '+ \
+          '"New Cases" '+ \
+          '"Total Deaths" '+ \
+          '"New Deaths" '+ \
+          '"Estimated R" '+ \
+          '"\'Diamond Princess Total Case Estimate\'" '+ \
+          '"Smoothened Total Cases" '+ \
+          '"Smoothened New Cases" '+ \
+          '"Smoothened Total Deaths" '+ \
+          '"Smoothened New Deaths" '+ \
+          '"Smoothened Estimated R" '+ \
+          '"Smoothened \'Diamond Princess Total Case Estimate\'" ',
+          file=outFile)
+    for i in range(0, len(db[country]["timeList"])):
+        tc2 =  "\"\""
+        tc2s = "\"\""
+        if i < len(db[country]["totalCases2"]):
+            tc2 = db[country]["totalCases2"][i]
+            tc2s = db[country]["totalCases2Smoothened"][i]
+
+        R = "\"\"" if db[country]["estimatedR"][i] is None else db[country]["estimatedR"][i]
+        Rs = "\"\"" if db[country]["estimatedRSmoothened"][i] is None else db[country]["estimatedRSmoothened"][i]
+        print(f'{db[country]["timeList"][i].strftime("%Y-%m-%d")}' + \
+              f' {db[country]["totalCases"][i]}'+ \
+              f' {db[country]["deltaCases"][i]}'+ \
+              f' {db[country]["totalDeaths"][i]}'+ \
+              f' {db[country]["deltaDeaths"][i]}'+ \
+              f' {R}'+ \
+              f' {tc2}'+ \
+              f' {db[country]["totalCasesSmoothened"][i]}'+ \
+              f' {db[country]["deltaCasesSmoothened"][i]}'+ \
+              f' {db[country]["totalDeaths"][i]}'+ \
+              f' {db[country]["deltaDeaths"][i]}'+ \
+              f' {Rs}'+ \
+              f' {tc2s}', file=outFile)
+        
+if __name__ == "__main__":
+    country = "Germany"
+    if len(sys.argv) > 1:
+        country = sys.argv[1]
+    
+    db = createDatabase()
+
+    printCountryCsv(db, country, sys.stdout)
+    
